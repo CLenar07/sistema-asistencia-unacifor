@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Control de Asistencia Médica UNACIFOR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .header-gradient {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- Encabezado mejorado -->
+        <header class="header-gradient text-white p-6 rounded-t-xl mb-4 shadow-md text-center">
+            <div class="mb-2">
+                 <img src="https://unacifor.edu.hn/storage/2021/11/NUEVO-LOGO-UNACIFOR.png" alt="Logo UNACIFOR" class="mx-auto h-20">
+            </div>
+            <h1 class="text-3xl font-bold mb-1">UNACIFOR</h1>
+            <h2 class="text-xl font-semibold mb-1">Departamento de Salud Estudiantil</h2>
+            <h3 class="text-lg">Sistema de Asistencia Médica</h3>
+        </header>
+
+        <!-- Notificaciones -->
+        <div id="notification" class="fixed top-4 right-4 hidden z-50">
+            <div class="bg-green-500 text-white px-4 py-2 rounded-md shadow-lg flex items-center">
+                <span id="notification-message"></span>
+                <button onclick="hideNotification()" class="ml-4">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Barra de búsqueda y herramientas -->
+        <div class="flex flex-col md:flex-row gap-4 mb-4">
+            <div class="flex-1">
+                <div class="relative">
+                    <input
+                        type="text"
+                        id="search"
+                        placeholder="Buscar estudiante por nombre, carrera o contacto..."
+                        class="w-full p-2 pl-10 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button id="export-data" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md flex items-center gap-2">
+                    <i class="fas fa-file-export"></i> Exportar
+                </button>
+                <label for="import-data" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md flex items-center gap-2 cursor-pointer">
+                    <i class="fas fa-file-import"></i> Importar
+                    <input type="file" id="import-data" accept=".json" class="hidden">
+                </label>
+                <button id="add-new-student-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md flex items-center gap-2">
+                    <i class="fas fa-user-plus"></i> Nuevo Estudiante
+                </button>
+            </div>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="bg-white p-4 rounded-xl shadow-sm mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="border-r border-gray-200 pr-4">
+                <p class="text-sm text-gray-500">Total Estudiantes</p>
+                <p id="total-students" class="text-2xl font-bold text-blue-600">0</p>
+            </div>
+            <div class="border-r border-gray-200 pr-4">
+                <p class="text-sm text-gray-500">Con asistencias</p>
+                <p id="present-students" class="text-2xl font-bold text-green-600">0</p>
+            </div>
+            <div class="border-r border-gray-200 pr-4">
+                <p class="text-sm text-gray-500">Asistencias completas</p>
+                <p id="complete-attendance" class="text-2xl font-bold text-purple-600">0</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500">Porcentaje total</p>
+                <p id="attendance-percentage" class="text-2xl font-bold text-indigo-600">0%</p>
+            </div>
+        </div>
+
+        <!-- Formulario para agregar estudiante -->
+        <div class="bg-white p-4 rounded-xl shadow-sm mb-6" id="add-student-container" style="display: none;">
+            <h2 id="add-student-title" class="text-xl font-semibold mb-4 flex items-center gap-2">
+                <i class="fas fa-user-plus"></i> Agregar Nuevo Estudiante
+            </h2>
+            <form id="add-student-form" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="fullName" class="block text-gray-700 text-sm font-bold mb-2">Nombre Completo:*</label>
+                        <input type="text" id="fullName" placeholder="Ingrese nombre completo" required
+                               class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
+                        <p class="text-xs text-gray-500 mt-1">Mínimo 3 caracteres</p>
+                    </div>
+                    <div>
+                        <label for="career" class="block text-gray-700 text-sm font-bold mb-2">Carrera:*</label>
+                        <select id="career" required class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                            <option value="">Seleccione una carrera</option>
+                            <option value="Técnico Universitario en Dasonomía">Técnico Universitario en Dasonomía</option>
+                            <option value="Técnico Universitario en Turismo Sostenible">Técnico Universitario en Turismo Sostenible</option>
+                            <option value="Ingeniería en Ciencias Forestales">Ingeniería en Ciencias Forestales</option>
+                            <option value="Ingeniería en Energía Renovable">Ingeniería en Energía Renovable</option>
+                            <option value="Ingeniería en Industrias y Negocios de la Madera">Ingeniería en Industrias y Negocios de la Madera</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="emergencyContactName" class="block text-gray-700 text-sm font-bold mb-2">Nombre Contacto de Emergencia:*</label>
+                        <input type="text" id="emergencyContactName" placeholder="Ingrese nombre del contacto" required
+                               class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
+                    </div>
+                    <div>
+                        <label for="emergencyContact" class="block text-gray-700 text-sm font-bold mb-2">Teléfono de Emergencia:*</label>
+                        <input type="tel" id="emergencyContact" placeholder="Ingrese número de contacto" required
+                               class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
+                        <p class="text-xs text-gray-500 mt-1">Mínimo 8 dígitos</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="photo" class="block text-gray-700 text-sm font-bold mb-2">Foto del Estudiante:*</label>
+                    <div class="flex items-center gap-4">
+                        <div class="relative">
+                            <img id="photo-preview" src="https://via.placeholder.com/150" alt="Vista previa de foto" class="w-24 h-24 rounded-full object-cover border-2 border-gray-300">
+                            <label for="photo" class="absolute bottom-0 right-0 bg-blue-500 text-white rounded-full p-1 cursor-pointer">
+                                <i class="fas fa-camera"></i>
+                                <input type="file" id="photo" accept="image/*" required class="hidden">
+                            </label>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-xs text-gray-500">Formatos: JPEG, PNG (Máx. 2MB)</p>
+                            <p id="photo-error" class="text-xs text-red-500 hidden"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end gap-2">
+                    <button type="button" id="cancel-add-student" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline flex items-center gap-2">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="submit" id="submit-student" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline flex items-center gap-2">
+                        <i class="fas fa-save"></i> Guardar Estudiante
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Lista de estudiantes con paginación -->
+        <div class="bg-white p-4 rounded-xl shadow-sm mb-4">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold">Listado de Estudiantes</h2>
+                <div class="text-sm text-gray-500">
+                    Mostrando <span id="showing-count">0</span> de <span id="total-count">0</span> estudiantes
+                </div>
+            </div>
+            
+            <div id="student-list" class="space-y-4 mb-4"></div>
+            
+            <div class="flex justify-between items-center">
+                <div class="text-sm text-gray-500">
+                    Estudiantes por página:
+                    <select id="items-per-page" class="border rounded p-1">
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+                <div class="flex gap-2" id="pagination-controls"></div>
+            </div>
+        </div>
+
+        <!-- Modal para editar estudiante -->
+        <div class="fixed z-10 inset-0 overflow-y-auto hidden" id="edit-modal">
+            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                
+                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                <h2 class="text-lg leading-6 font-medium text-gray-900 flex items-center gap-2">
+                                    <i class="fas fa-user-edit"></i> Editar Estudiante
+                                </h2>
+                                <div id="edit-student-form" class="mt-4 space-y-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="editFullName" class="block text-gray-700 text-sm font-bold mb-2">Nombre Completo:*</label>
+                                            <input type="text" id="editFullName" required
+                                                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
+                                        </div>
+                                        <div>
+                                            <label for="editCareer" class="block text-gray-700 text-sm font-bold mb-2">Carrera:*</label>
+                                            <select id="editCareer" required class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                                                <option value="">Seleccione una carrera</option>
+                                                <option value="Técnico Universitario en Dasonomía">Técnico Universitario en Dasonomía</option>
+                                                <option value="Técnico Universitario en Turismo Sostenible">Técnico Universitario en Turismo Sostenible</option>
+                                                <option value="Ingeniería en Ciencias Forestales">Ingeniería en Ciencias Forestales</option>
+                                                <option value="Ingeniería en Energía Renovable">Ingeniería en Energía Renovable</option>
+                                                <option value="Ingeniería en Industrias y Negocios de la Madera">Ingeniería en Industrias y Negocios de la Madera</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="editEmergencyContactName" class="block text-gray-700 text-sm font-bold mb-2">Nombre Contacto de Emergencia:*</label>
+                                            <input type="text" id="editEmergencyContactName" required
+                                                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
+                                        </div>
+                                        <div>
+                                            <label for="editEmergencyContact" class="block text-gray-700 text-sm font-bold mb-2">Teléfono de Emergencia:*</label>
+                                            <input type="tel" id="editEmergencyContact" required
+                                                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="editPhoto" class="block text-gray-700 text-sm font-bold mb-2">Foto del Estudiante:</label>
+                                        <div class="flex items-center gap-4">
+                                            <div class="relative">
+                                                <img id="edit-photo-preview" src="https://via.placeholder.com/150" alt="Vista previa de foto" class="w-24 h-24 rounded-full object-cover border-2 border-gray-300">
+                                                <label for="editPhoto" class="absolute bottom-0 right-0 bg-blue-500 text-white rounded-full p-1 cursor-pointer">
+                                                    <i class="fas fa-camera"></i>
+                                                    <input type="file" id="editPhoto" accept="image/*" class="hidden">
+                                                </label>
+                                            </div>
+                                            <div class="flex-1">
+                                                <p class="text-xs text-gray-500">Dejar en blanco para mantener la foto actual</p>
+                                                <p id="edit-photo-error" class="text-xs text-red-500 hidden"></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                        <button type="button" id="save-edit-button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:shadow-outline sm:ml-3 sm:w-auto sm:text-sm flex items-center gap-2">
+                            <i class="fas fa-save"></i> Guardar Cambios
+                        </button>
+                        <button type="button" id="cancel-edit-modal" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm flex items-center gap-2">
+                            <i class="fas fa-times"></i> Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Clase para manejar estudiantes
+        class StudentManager {
+            constructor() {
+                this.students = this.loadStudents();
+                this.currentPage = 1;
+                this.itemsPerPage = 10;
+                this.editingStudent = null;
+                this.isAdding = false;
+                this.initEventListeners();
+                this.updateUI();
+            }
+            
+            loadStudents() {
+                const defaultStudents = [
+                    { 
+                        id: 1, 
+                        fullName: 'Juan Pérez', 
+                        career: 'Ingeniería en Ciencias Forestales', 
+                        emergencyContactName: 'María Pérez', 
+                        emergencyContact: '55551234', 
+                        attendances: 0, 
+                        lastAttendance: null, 
+                        photo: null 
+                    },
+                    { 
+                        id: 2, 
+                        fullName: 'María García', 
+                        career: 'Técnico Universitario en Dasonomía', 
+                        emergencyContactName: 'Pedro García', 
+                        emergencyContact: '55555678', 
+                        attendances: 0, 
+                        lastAttendance: null, 
+                        photo: null 
+                    }
+                ];
+                
+                const saved = localStorage.getItem('attendance-students');
+                return saved ? JSON.parse(saved) : defaultStudents;
+            }
+            
+            saveStudents() {
+                localStorage.setItem('attendance-students', JSON.stringify(this.students));
+            }
+            
+            initEventListeners() {
+                // Búsqueda
+                document.getElementById('search').addEventListener('input', () => {
+                    this.currentPage = 1;
+                    this.updateUI();
+                });
+                
+                // Items por página
+                document.getElementById('items-per-page').addEventListener('change', (e) => {
+                    this.itemsPerPage = parseInt(e.target.value);
+                    this.currentPage = 1;
+                    this.updateUI();
+                });
+                
+                // Formulario agregar estudiante
+                document.getElementById('add-student-form').addEventListener('submit', (e) => this.addStudent(e));
+                document.getElementById('add-new-student-button').addEventListener('click', () => this.showAddForm());
+                document.getElementById('cancel-add-student').addEventListener('click', () => this.hideAddForm());
+                
+                // Botón guardar edición (SOLUCIÓN AL PROBLEMA)
+                document.getElementById('save-edit-button').addEventListener('click', (e) => this.editStudent(e));
+                document.getElementById('cancel-edit-modal').addEventListener('click', () => this.hideEditModal());
+                
+                // Foto preview
+                document.getElementById('photo').addEventListener('change', (e) => this.previewPhoto(e, 'photo-preview', 'photo-error'));
+                document.getElementById('editPhoto').addEventListener('change', (e) => this.previewPhoto(e, 'edit-photo-preview', 'edit-photo-error'));
+                
+                // Exportar/Importar
+                document.getElementById('export-data').addEventListener('click', () => this.exportData());
+                document.getElementById('import-data').addEventListener('change', (e) => this.importData(e));
+            }
+            
+            // Funciones para manejar la asistencia
+            toggleAttendance(id) {
+                this.students = this.students.map(student => {
+                    if (student.id === id && student.attendances < 16) {
+                        return { 
+                            ...student, 
+                            attendances: student.attendances + 1, 
+                            lastAttendance: new Date().toISOString() 
+                        };
+                    }
+                    return student;
+                });
+                this.saveStudents();
+                this.updateUI();
+                this.showNotification('Asistencia registrada correctamente');
+            }
+            
+            removeAttendance(id) {
+                this.students = this.students.map(student => {
+                    if (student.id === id && student.attendances > 0) {
+                        return { 
+                            ...student, 
+                            attendances: student.attendances - 1, 
+                            lastAttendance: student.attendances - 1 === 0 ? null : student.lastAttendance 
+                        };
+                    }
+                    return student;
+                });
+                this.saveStudents();
+                this.updateUI();
+                this.showNotification('Asistencia removida correctamente');
+            }
+            
+            // Funciones para CRUD de estudiantes
+            addStudent(event) {
+                event.preventDefault();
+                
+                const fullName = document.getElementById('fullName').value.trim();
+                const career = document.getElementById('career').value;
+                const emergencyContactName = document.getElementById('emergencyContactName').value.trim();
+                const emergencyContact = document.getElementById('emergencyContact').value.trim();
+                const photoInput = document.getElementById('photo');
+                
+                // Validaciones
+                if (!this.validateStudentData(fullName, career, emergencyContactName, emergencyContact, photoInput)) {
+                    return;
+                }
+                
+                this.showLoading(true);
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const newStudent = {
+                        id: Date.now(),
+                        fullName: this.escapeHtml(fullName),
+                        career: this.escapeHtml(career),
+                        emergencyContactName: this.escapeHtml(emergencyContactName),
+                        emergencyContact: this.escapeHtml(emergencyContact),
+                        attendances: 0,
+                        lastAttendance: null,
+                        photo: e.target.result,
+                    };
+                    
+                    this.students = [...this.students, newStudent];
+                    this.saveStudents();
+                    
+                    // Reset form
+                    document.getElementById('add-student-form').reset();
+                    document.getElementById('photo-preview').src = 'https://via.placeholder.com/150';
+                    
+                    this.hideAddForm();
+                    this.updateUI();
+                    this.showLoading(false);
+                    this.showNotification('Estudiante agregado correctamente');
+                };
+                
+                reader.onerror = () => {
+                    this.showLoading(false);
+                    document.getElementById('photo-error').textContent = 'Error al leer la imagen';
+                    document.getElementById('photo-error').classList.remove('hidden');
+                };
+                
+                reader.readAsDataURL(photoInput.files[0]);
+            }
+            
+            // FUNCIÓN EDITAR ESTUDIANTE CORREGIDA (SOLUCIÓN AL PROBLEMA)
+            editStudent(event) {
+                event.preventDefault();
+                if (!this.editingStudent) return;
+
+                // Obtener valores del formulario
+                const editFullName = document.getElementById('editFullName').value.trim();
+                const editCareer = document.getElementById('editCareer').value;
+                const editEmergencyContactName = document.getElementById('editEmergencyContactName').value.trim();
+                const editEmergencyContact = document.getElementById('editEmergencyContact').value.trim();
+                const editPhotoInput = document.getElementById('editPhoto');
+
+                // Validar datos
+                if (!editFullName || !editCareer || !editEmergencyContactName || !editEmergencyContact) {
+                    alert('Por favor complete todos los campos obligatorios');
+                    return;
+                }
+
+                this.showLoading(true);
+
+                // Determinar qué foto usar (nueva o existente)
+                const processUpdate = (photoData) => {
+                    this.students = this.students.map(student => {
+                        if (student.id === this.editingStudent.id) {
+                            return {
+                                ...student,
+                                fullName: this.escapeHtml(editFullName),
+                                career: this.escapeHtml(editCareer),
+                                emergencyContactName: this.escapeHtml(editEmergencyContactName),
+                                emergencyContact: this.escapeHtml(editEmergencyContact),
+                                photo: photoData || student.photo
+                            };
+                        }
+                        return student;
+                    });
+
+                    this.saveStudents();
+                    this.hideEditModal();
+                    this.updateUI();
+                    this.showLoading(false);
+                    this.showNotification('Estudiante actualizado correctamente');
+                };
+
+                // Si hay nueva foto, procesarla
+                if (editPhotoInput.files && editPhotoInput.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => processUpdate(e.target.result);
+                    reader.readAsDataURL(editPhotoInput.files[0]);
+                } else {
+                    processUpdate(null); // Mantener foto existente
+                }
+            }
+            
+            deleteStudent(id) {
+                if (confirm('¿Estás seguro de que deseas eliminar a este estudiante?')) {
+                    this.students = this.students.filter(student => student.id !== id);
+                    this.saveStudents();
+                    this.updateUI();
+                    this.showNotification('Estudiante eliminado correctamente');
+                    
+                    // Si la página queda vacía, retroceder
+                    const filtered = this.getFilteredStudents();
+                    const totalPages = Math.ceil(filtered.length / this.itemsPerPage);
+                    if (this.currentPage > totalPages && totalPages > 0) {
+                        this.currentPage = totalPages;
+                        this.updateUI();
+                    }
+                }
+            }
+            
+            // Funciones para UI
+            showAddForm() {
+                this.isAdding = true;
+                document.getElementById('add-student-container').style.display = 'block';
+                document.getElementById('add-new-student-button').style.display = 'none';
+                document.getElementById('fullName').focus();
+            }
+            
+            hideAddForm() {
+                this.isAdding = false;
+                document.getElementById('add-student-container').style.display = 'none';
+                document.getElementById('add-new-student-button').style.display = 'flex';
+                document.getElementById('add-student-form').reset();
+                document.getElementById('photo-preview').src = 'https://via.placeholder.com/150';
+                document.getElementById('photo-error').classList.add('hidden');
+            }
+            
+            showEditModal(id) {
+                this.editingStudent = this.students.find(student => student.id === id);
+                if (!this.editingStudent) return;
+                
+                document.getElementById('editFullName').value = this.editingStudent.fullName;
+                document.getElementById('editCareer').value = this.editingStudent.career;
+                document.getElementById('editEmergencyContactName').value = this.editingStudent.emergencyContactName;
+                document.getElementById('editEmergencyContact').value = this.editingStudent.emergencyContact;
+                document.getElementById('edit-photo-preview').src = this.editingStudent.photo || 'https://via.placeholder.com/150';
+                document.getElementById('editPhoto').value = '';
+                document.getElementById('edit-photo-error').classList.add('hidden');
+                
+                document.getElementById('edit-modal').classList.remove('hidden');
+                document.getElementById('editFullName').focus();
+            }
+            
+            hideEditModal() {
+                document.getElementById('edit-modal').classList.add('hidden');
+                this.editingStudent = null;
+            }
+            
+            previewPhoto(event, previewId, errorId) {
+                const file = event.target.files[0];
+                const errorElement = document.getElementById(errorId);
+                
+                // Validar tipo y tamaño
+                if (file) {
+                    const validTypes = ['image/jpeg', 'image/png'];
+                    if (!validTypes.includes(file.type)) {
+                        errorElement.textContent = 'Solo se permiten imágenes JPEG o PNG';
+                        errorElement.classList.remove('hidden');
+                        event.target.value = '';
+                        return;
+                    }
+                    
+                    if (file.size > 2 * 1024 * 1024) { // 2MB
+                        errorElement.textContent = 'La imagen es demasiado grande (máximo 2MB)';
+                        errorElement.classList.remove('hidden');
+                        event.target.value = '';
+                        return;
+                    }
+                    
+                    errorElement.classList.add('hidden');
+                    
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        document.getElementById(previewId).src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+            
+            // Funciones para renderizar la lista
+            getFilteredStudents() {
+                const searchTerm = document.getElementById('search').value.toLowerCase();
+                return this.students.filter(student =>
+                    student.fullName.toLowerCase().includes(searchTerm) ||
+                    student.career.toLowerCase().includes(searchTerm) ||
+                    student.emergencyContact.toLowerCase().includes(searchTerm) ||
+                    student.emergencyContactName.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            renderStudentList() {
+                const studentList = document.getElementById('student-list');
+                studentList.innerHTML = '';
+                
+                const filteredStudents = this.getFilteredStudents();
+                const totalStudents = filteredStudents.length;
+                const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+                const paginatedStudents = filteredStudents.slice(startIndex, startIndex + this.itemsPerPage);
+                
+                document.getElementById('showing-count').textContent = paginatedStudents.length;
+                document.getElementById('total-count').textContent = totalStudents;
+                
+                if (paginatedStudents.length === 0) {
+                    studentList.innerHTML = `
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-user-slash text-4xl mb-2"></i>
+                            <p>No se encontraron estudiantes</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                paginatedStudents.forEach(student => {
+                    const studentCard = document.createElement('div');
+                    studentCard.className = "bg-white p-4 rounded-xl shadow-md flex flex-col md:flex-row justify-between items-start md:items-center border border-gray-100";
+                    
+                    const attendancePercentage = (student.attendances / 16) * 100;
+                    const lastAttendance = student.lastAttendance ? 
+                        new Date(student.lastAttendance).toLocaleDateString('es-ES', { 
+                            day: '2-digit', 
+                            month: '2-digit', 
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }) : 'N/A';
+                    
+                    studentCard.innerHTML = `
+                        <div class="flex items-center gap-4 mb-4 md:mb-0 w-full md:w-auto">
+                            <img src="${student.photo ? student.photo : 'https://via.placeholder.com/150'}" 
+                                 alt="Foto de ${student.fullName}" 
+                                 class="w-16 h-16 rounded-full object-cover border-2 border-gray-200">
+                            <div class="flex-1">
+                                <h2 class="text-lg font-semibold">${student.fullName}</h2>
+                                <p class="text-sm text-gray-500">${student.career}</p>
+                                <p class="text-sm text-gray-500">Contacto: ${student.emergencyContactName} - ${student.emergencyContact}</p>
+                                
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="text-sm font-medium ${student.attendances > 0 ? "text-green-600" : "text-red-600"}">
+                                        ${student.attendances}/16 asistencias
+                                    </span>
+                                    <span class="text-xs text-gray-400">${lastAttendance}</span>
+                                </div>
+                                
+                                <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
+                                    <div class="bg-green-500 h-2 rounded-full" 
+                                         style="width: ${attendancePercentage}%" 
+                                         aria-valuenow="${attendancePercentage}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-wrap gap-2 justify-end w-full md:w-auto">
+                            <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-md text-sm flex items-center gap-1"
+                                    onclick="studentManager.toggleAttendance(${student.id})" 
+                                    ${student.attendances >= 16 ? 'disabled' : ''}>
+                                <i class="fas fa-check"></i> ${student.attendances < 16 ? 'Asistencia' : 'Completo'}
+                            </button>
+                            <button class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-md text-sm flex items-center gap-1"
+                                    onclick="studentManager.removeAttendance(${student.id})" 
+                                    ${student.attendances === 0 ? 'disabled' : ''}>
+                                <i class="fas fa-times"></i> Quitar
+                            </button>
+                            <button class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-3 rounded-md text-sm flex items-center gap-1"
+                                    onclick="studentManager.showEditModal(${student.id})">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
+                            <button class="bg-red-600 hover:bg-red-800 text-white font-bold py-2 px-3 rounded-md text-sm flex items-center gap-1"
+                                    onclick="studentManager.deleteStudent(${student.id})">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
+                        </div>
+                    `;
+                    studentList.appendChild(studentCard);
+                });
+            }
+            
+            renderPaginationControls() {
+                const filteredStudents = this.getFilteredStudents();
+                const totalPages = Math.ceil(filteredStudents.length / this.itemsPerPage);
+                const paginationControls = document.getElementById('pagination-controls');
+                
+                paginationControls.innerHTML = '';
+                
+                if (totalPages <= 1) return;
+                
+                // Botón Anterior
+                const prevButton = document.createElement('button');
+                prevButton.className = `px-3 py-1 rounded-md ${this.currentPage === 1 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`;
+                prevButton.innerHTML = '<i class="fas fa-chevron-left"></i>';
+                prevButton.disabled = this.currentPage === 1;
+                prevButton.addEventListener('click', () => {
+                    if (this.currentPage > 1) {
+                        this.currentPage--;
+                        this.updateUI();
+                    }
+                });
+                paginationControls.appendChild(prevButton);
+                
+                // Números de página
+                const maxVisiblePages = 5;
+                let startPage = Math.max(1, this.currentPage - Math.floor(maxVisiblePages / 2));
+                let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                
+                if (endPage - startPage + 1 < maxVisiblePages) {
+                    startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                }
+                
+                if (startPage > 1) {
+                    const firstPageButton = document.createElement('button');
+                    firstPageButton.className = 'px-3 py-1 rounded-md bg-white text-blue-500 hover:bg-blue-50';
+                    firstPageButton.textContent = '1';
+                    firstPageButton.addEventListener('click', () => {
+                        this.currentPage = 1;
+                        this.updateUI();
+                    });
+                    paginationControls.appendChild(firstPageButton);
+                    
+                    if (startPage > 2) {
+                        const ellipsis = document.createElement('span');
+                        ellipsis.className = 'px-2 py-1';
+                        ellipsis.textContent = '...';
+                        paginationControls.appendChild(ellipsis);
+                    }
+                }
+                
+                for (let i = startPage; i <= endPage; i++) {
+                    const pageButton = document.createElement('button');
+                    pageButton.className = `px-3 py-1 rounded-md ${this.currentPage === i ? 'bg-blue-600 text-white' : 'bg-white text-blue-500 hover:bg-blue-50'}`;
+                    pageButton.textContent = i;
+                    pageButton.addEventListener('click', () => {
+                        this.currentPage = i;
+                        this.updateUI();
+                    });
+                    paginationControls.appendChild(pageButton);
+                }
+                
+                if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) {
+                        const ellipsis = document.createElement('span');
+                        ellipsis.className = 'px-2 py-1';
+                        ellipsis.textContent = '...';
+                        paginationControls.appendChild(ellipsis);
+                    }
+                    
+                    const lastPageButton = document.createElement('button');
+                    lastPageButton.className = 'px-3 py-1 rounded-md bg-white text-blue-500 hover:bg-blue-50';
+                    lastPageButton.textContent = totalPages;
+                    lastPageButton.addEventListener('click', () => {
+                        this.currentPage = totalPages;
+                        this.updateUI();
+                    });
+                    paginationControls.appendChild(lastPageButton);
+                }
+                
+                // Botón Siguiente
+                const nextButton = document.createElement('button');
+                nextButton.className = `px-3 py-1 rounded-md ${this.currentPage === totalPages ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`;
+                nextButton.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                nextButton.disabled = this.currentPage === totalPages;
+                nextButton.addEventListener('click', () => {
+                    if (this.currentPage < totalPages) {
+                        this.currentPage++;
+                        this.updateUI();
+                    }
+                });
+                paginationControls.appendChild(nextButton);
+            }
+            
+            // Funciones para estadísticas
+            updateAttendanceStats() {
+                const presentCount = this.students.filter(s => s.attendances > 0).length;
+                const completeCount = this.students.filter(s => s.attendances >= 16).length;
+                const total = this.students.length;
+                const percentage = total > 0 ? Math.round((presentCount / total) * 100) : 0;
+                
+                document.getElementById('total-students').textContent = total;
+                document.getElementById('present-students').textContent = presentCount;
+                document.getElementById('complete-attendance').textContent = completeCount;
+                document.getElementById('attendance-percentage').textContent = `${percentage}%`;
+            }
+            
+            // Funciones para exportar/importar
+            exportData() {
+                const data = JSON.stringify(this.students, null, 2);
+                const blob = new Blob([data], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `backup-asistencias-unacifor-${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                this.showNotification('Datos exportados correctamente');
+            }
+            
+            importData(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                if (!confirm(`¿Importar datos desde ${file.name}? Esto sobrescribirá los datos actuales.`)) {
+                    event.target.value = '';
+                    return;
+                }
+                
+                this.showLoading(true);
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const imported = JSON.parse(e.target.result);
+                        
+                        // Validación básica de datos
+                        if (!Array.isArray(imported) || imported.some(s => !s.id || !s.fullName)) {
+                            throw new Error('Formato de archivo no válido');
+                        }
+                        
+                        this.students = imported;
+                        this.saveStudents();
+                        this.currentPage = 1;
+                        this.updateUI();
+                        this.showNotification(`Datos importados correctamente (${imported.length} estudiantes)`);
+                    } catch (error) {
+                        console.error('Error al importar:', error);
+                        alert('Error al importar: Archivo no válido o corrupto');
+                    } finally {
+                        this.showLoading(false);
+                        event.target.value = '';
+                    }
+                };
+                
+                reader.onerror = () => {
+                    this.showLoading(false);
+                    alert('Error al leer el archivo');
+                    event.target.value = '';
+                };
+                
+                reader.readAsText(file);
+            }
+            
+            // Funciones de utilidad
+            validateStudentData(fullName, career, emergencyContactName, emergencyContact, photoInput = null) {
+                // Validar nombre
+                if (!fullName || fullName.length < 3) {
+                    alert('El nombre debe tener al menos 3 caracteres');
+                    return false;
+                }
+                
+                // Validar carrera
+                if (!career) {
+                    alert('Por favor seleccione una carrera');
+                    return false;
+                }
+                
+                // Validar contacto de emergencia
+                if (!emergencyContactName || emergencyContactName.length < 3) {
+                    alert('El nombre del contacto de emergencia debe tener al menos 3 caracteres');
+                    return false;
+                }
+                
+                // Validar teléfono de emergencia
+                if (!emergencyContact || !/^[0-9]{8,}$/.test(emergencyContact)) {
+                    alert('El contacto de emergencia debe ser un número válido (mínimo 8 dígitos)');
+                    return false;
+                }
+                
+                // Validar foto (solo para agregar nuevo estudiante)
+                if (photoInput && (!photoInput.files || !photoInput.files[0])) {
+                    alert('Por favor, seleccione una foto del estudiante');
+                    return false;
+                }
+                
+                return true;
+            }
+            
+            escapeHtml(unsafe) {
+                return unsafe
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+            
+            showNotification(message) {
+                const notification = document.getElementById('notification');
+                const messageElement = document.getElementById('notification-message');
+                
+                messageElement.textContent = message;
+                notification.classList.remove('hidden');
+                
+                setTimeout(() => {
+                    notification.classList.add('hidden');
+                }, 5000);
+            }
+            
+            hideNotification() {
+                document.getElementById('notification').classList.add('hidden');
+            }
+            
+            showLoading(show) {
+                const submitButton = document.getElementById('submit-student');
+                const saveEditButton = document.getElementById('save-edit-button');
+                
+                if (submitButton) {
+                    submitButton.disabled = show;
+                    submitButton.innerHTML = show 
+                        ? '<i class="fas fa-spinner spinner"></i> Procesando...' 
+                        : '<i class="fas fa-save"></i> Guardar Estudiante';
+                }
+                
+                if (saveEditButton) {
+                    saveEditButton.disabled = show;
+                    saveEditButton.innerHTML = show 
+                        ? '<i class="fas fa-spinner spinner"></i> Guardando...' 
+                        : '<i class="fas fa-save"></i> Guardar Cambios';
+                }
+            }
+            
+            // Actualizar toda la UI
+            updateUI() {
+                this.renderStudentList();
+                this.renderPaginationControls();
+                this.updateAttendanceStats();
+            }
+        }
+        
+        // Inicializar la aplicación
+        const studentManager = new StudentManager();
+        
+        // Hacer funciones disponibles globalmente
+        window.studentManager = studentManager;
+        window.toggleAttendance = (id) => studentManager.toggleAttendance(id);
+        window.removeAttendance = (id) => studentManager.removeAttendance(id);
+        window.showEditModal = (id) => studentManager.showEditModal(id);
+        window.deleteStudent = (id) => studentManager.deleteStudent(id);
+        window.hideNotification = () => studentManager.hideNotification();
+    </script>
+</body>
+</html>
